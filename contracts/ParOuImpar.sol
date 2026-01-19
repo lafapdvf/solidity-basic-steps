@@ -6,7 +6,10 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract ParOuImpar {
 
-    string public choice = ""; // EVEN OR ODD
+    string public choicePlayer1 = ""; // EVEN OR ODD
+    address public player1;
+    uint8 private numberPlayer1;
+    string public status = "";
 
     function compare(string memory str1, string memory str2) private pure returns(bool) {
         bytes memory arrA = bytes(str1);
@@ -16,28 +19,40 @@ contract ParOuImpar {
 
     function choose(string memory newChoice) public {
         require(compare(newChoice, "EVEN") || compare(newChoice, "ODD"), "Choose EVEN or ODD");
-        choice = newChoice;
+
+        string memory message = string.concat("Player 1 has already chosen ", choicePlayer1);
+        require(compare(choicePlayer1, ""), message);
+
+        choicePlayer1 = newChoice;
+        player1 = msg.sender;
+        status = string.concat("Player 1 is ", Strings.toHexString(player1), " and chose ", choicePlayer1);
     }
 
-    function random() private view returns(uint256) {
-        return uint(keccak256(abi.encodePacked(block.timestamp, choice))) % 2;
-    }
+    function play(uint8 number) public {
+        require(!compare(choicePlayer1, ""), "First of all, choose your option (EVEN or ODD)");
+        require(number > 0, "The number must be greater than 0.");
 
-    function play(uint8 number) public view returns(string memory) {
-        require(number >= 0 && number <= 2, "Play 0, 1 or 2");
-        require(!compare(choice, ""), "First of all, choose your option (EVEN or ODD)");
+        if(msg.sender == player1) {
+            numberPlayer1 = number;
+            status = "Player 1 has already played. Waiting for player 2.";
+        }
+        else {
+            require(numberPlayer1 != 0, "Player 1 has not played yet.");
+            bool isEven = (numberPlayer1 + number) % 2 == 0;
+            string memory message = string.concat("Player 1 chose ", choicePlayer1,
+                " and played ", Strings.toString(numberPlayer1),
+                ". Player 2 played ", Strings.toString(number), ".");
 
-        uint256 cpuNumber = random();
-        bool isEven = (number + cpuNumber) % 2 == 0;
-        string memory message = string.concat("Player chose ", choice,
-            " and played ", Strings.toString(number),
-            ", CPU played ", Strings.toString(cpuNumber));
+            if(isEven && compare(choicePlayer1, "EVEN"))
+                status = string.concat(message, ". Player 1 won.");
+            else if(!isEven && compare(choicePlayer1, "ODD")) 
+                status = string.concat(message, ". Player 1 won.");
+            else 
+                status = string.concat(message, ". Player 2 won.");
 
-        if(isEven && compare(choice, "EVEN"))
-            return string.concat(message, ". Player won.");
-        else if(!isEven && compare(choice, "ODD")) 
-            return string.concat(message, ". Player won.");
-        else 
-            return string.concat(message, ". CPU won.");
+            choicePlayer1 = "";
+            numberPlayer1 = 0;
+            player1 = address(0);
+        }
     }
 }
